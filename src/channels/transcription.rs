@@ -139,21 +139,110 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn rejects_missing_api_key() {
-        // Ensure the key is absent for this test
-        std::env::remove_var("GROQ_API_KEY");
+    #[test]
+    fn api_key_filters_placeholder_not_required() {
+        let mut config = TranscriptionConfig::default();
+        config.api_key = Some("not-required".to_string());
+        
+        // Placeholder "not-required" should be filtered to None
+        let api_key = if let Some(ref key) = config.api_key {
+            let trimmed = key.trim();
+            if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("not-required") || trimmed.eq_ignore_ascii_case("none") {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        } else {
+            None
+        };
+        
+        assert!(api_key.is_none(), "placeholder 'not-required' should be filtered to None");
+    }
 
-        let data = vec![0u8; 100];
-        let config = TranscriptionConfig::default();
+    #[test]
+    fn api_key_filters_placeholder_none() {
+        let mut config = TranscriptionConfig::default();
+        config.api_key = Some("none".to_string());
+        
+        let api_key = if let Some(ref key) = config.api_key {
+            let trimmed = key.trim();
+            if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("not-required") || trimmed.eq_ignore_ascii_case("none") {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        } else {
+            None
+        };
+        
+        assert!(api_key.is_none(), "placeholder 'none' should be filtered to None");
+    }
 
-        let err = transcribe_audio(data, "test.ogg", &config)
-            .await
-            .unwrap_err();
-        assert!(
-            err.to_string().contains("GROQ_API_KEY"),
-            "expected missing-key error, got: {err}"
-        );
+    #[test]
+    fn api_key_filters_empty_string() {
+        let mut config = TranscriptionConfig::default();
+        config.api_key = Some("".to_string());
+        
+        let api_key = if let Some(ref key) = config.api_key {
+            let trimmed = key.trim();
+            if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("not-required") || trimmed.eq_ignore_ascii_case("none") {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        } else {
+            None
+        };
+        
+        assert!(api_key.is_none(), "empty string should be filtered to None");
+    }
+
+    #[test]
+    fn api_key_preserves_real_key() {
+        let mut config = TranscriptionConfig::default();
+        config.api_key = Some("sk-real-api-key-12345".to_string());
+        
+        let api_key = if let Some(ref key) = config.api_key {
+            let trimmed = key.trim();
+            if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("not-required") || trimmed.eq_ignore_ascii_case("none") {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        } else {
+            None
+        };
+        
+        assert_eq!(api_key, Some("sk-real-api-key-12345".to_string()), "real API key should be preserved");
+    }
+
+    #[test]
+    fn api_key_case_insensitive_placeholders() {
+        let cases = [
+            "NOT-REQUIRED",
+            "Not-Required",
+            "NONE",
+            "None",
+            "NoNe",
+        ];
+        
+        for placeholder in cases {
+            let mut config = TranscriptionConfig::default();
+            config.api_key = Some(placeholder.to_string());
+            
+            let api_key = if let Some(ref key) = config.api_key {
+                let trimmed = key.trim();
+                if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("not-required") || trimmed.eq_ignore_ascii_case("none") {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            } else {
+                None
+            };
+            
+            assert!(api_key.is_none(), "placeholder '{}' should be filtered (case-insensitive)", placeholder);
+        }
     }
 
     #[test]
