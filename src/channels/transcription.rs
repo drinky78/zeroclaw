@@ -59,12 +59,18 @@ pub async fn transcribe_audio(
         )
     })?;
 
+    // Resolve API key: config → env fallback → None (for providers that don't need auth)
     let api_key = if let Some(ref key) = config.api_key {
-        key.clone()
+        let trimmed = key.trim();
+        // Skip placeholder values that indicate "no auth needed"
+        if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("not-required") || trimmed.eq_ignore_ascii_case("none") {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
     } else {
-        std::env::var("GROQ_API_KEY").context(
-            "API key not configured in transcription.api_key and GROQ_API_KEY environment variable is not set",
-        )?
+        // Fallback to GROQ_API_KEY for backward compatibility (Groq always needs auth)
+        std::env::var("GROQ_API_KEY").ok().map(|k| k.trim().to_string()).filter(|k| !k.is_empty())
     };
 
     let client = crate::config::build_runtime_proxy_client("transcription.groq");
@@ -82,10 +88,16 @@ pub async fn transcribe_audio(
         form = form.text("language", lang.clone());
     }
 
-    let resp = client
+    let mut request = client
         .post(&config.api_url)
-        .bearer_auth(&api_key)
-        .multipart(form)
+        .multipart(form);
+
+    // Only add Authorization header if API key is present
+    if let Some(ref key) = api_key {
+        request = request.bearer_auth(key);
+    }
+
+    let resp = request
         .send()
         .await
         .context("Failed to send transcription request")?;
