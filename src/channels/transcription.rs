@@ -73,7 +73,11 @@ pub async fn transcribe_audio(
         std::env::var("GROQ_API_KEY").ok().map(|k| k.trim().to_string()).filter(|k| !k.is_empty())
     };
 
-    let client = crate::config::build_runtime_proxy_client("transcription.groq");
+    let client = crate::config::build_runtime_proxy_client_with_timeouts(
+        "transcription.groq",
+        config.timeout_secs,
+        config.connect_timeout_secs,
+    );
 
     let file_part = Part::bytes(audio_data)
         .file_name(normalized_name)
@@ -137,6 +141,23 @@ mod tests {
             err.to_string().contains("too large"),
             "expected size error, got: {err}"
         );
+    }
+
+    #[test]
+    fn transcription_config_has_timeout_defaults() {
+        let config = TranscriptionConfig::default();
+        assert_eq!(config.timeout_secs, 120, "default HTTP request timeout should be 120 seconds");
+        assert_eq!(config.connect_timeout_secs, 10, "default TCP connect timeout should be 10 seconds");
+    }
+
+    #[test]
+    fn transcription_config_respects_custom_timeouts() {
+        let mut config = TranscriptionConfig::default();
+        config.timeout_secs = 60;
+        config.connect_timeout_secs = 5;
+        
+        assert_eq!(config.timeout_secs, 60);
+        assert_eq!(config.connect_timeout_secs, 5);
     }
 
     #[test]

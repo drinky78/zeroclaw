@@ -364,6 +364,14 @@ fn default_transcription_max_duration_secs() -> u64 {
     120
 }
 
+fn default_transcription_timeout_secs() -> u64 {
+    120
+}
+
+fn default_transcription_connect_timeout_secs() -> u64 {
+    10
+}
+
 /// Voice transcription configuration (Whisper API).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TranscriptionConfig {
@@ -385,6 +393,12 @@ pub struct TranscriptionConfig {
     /// Maximum voice duration in seconds (messages longer than this are skipped).
     #[serde(default = "default_transcription_max_duration_secs")]
     pub max_duration_secs: u64,
+    /// HTTP request timeout in seconds (default: 120).
+    #[serde(default = "default_transcription_timeout_secs")]
+    pub timeout_secs: u64,
+    /// TCP connect timeout in seconds (default: 10).
+    #[serde(default = "default_transcription_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
     /// Optional API key (if None, falls back to GROQ_API_KEY environment variable).
     #[serde(default)]
     pub api_key: Option<String>,
@@ -399,6 +413,8 @@ impl Default for TranscriptionConfig {
             model: default_transcription_model(),
             language: None,
             max_duration_secs: default_transcription_max_duration_secs(),
+            timeout_secs: default_transcription_timeout_secs(),
+            connect_timeout_secs: default_transcription_connect_timeout_secs(),
             api_key: None,
         }
     }
