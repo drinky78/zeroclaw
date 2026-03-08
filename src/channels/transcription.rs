@@ -59,9 +59,13 @@ pub async fn transcribe_audio(
         )
     })?;
 
-    let api_key = std::env::var("GROQ_API_KEY").context(
-        "GROQ_API_KEY environment variable is not set — required for voice transcription",
-    )?;
+    let api_key = if let Some(ref key) = config.api_key {
+        key.clone()
+    } else {
+        std::env::var("GROQ_API_KEY").context(
+            "API key not configured in transcription.api_key and GROQ_API_KEY environment variable is not set",
+        )?
+    };
 
     let client = crate::config::build_runtime_proxy_client("transcription.groq");
 
